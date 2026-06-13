@@ -1,0 +1,43 @@
+<div class="p-8 max-w-3xl">
+
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-2xl font-semibold text-white">Today</h1>
+      <p class="text-zinc-400 text-sm mt-1">{{ today | date:'EEEE, MMMM d' }}</p>
+    </div>
+    <p-button label="Sync" icon="pi pi-sync" [outlined]="true" size="small" (onClick)="load()" />
+  </div>
+
+  @if (isLoading()) {
+    <div class="flex flex-col gap-4">
+      @for (i of [1,2,3]; track i) {
+        <p-skeleton height="80px" borderRadius="12px" />
+      }
+    </div>
+  } @else if (events().length === 0) {
+    <div class="flex flex-col items-center justify-center py-24 text-zinc-600">
+      <i class="pi pi-inbox text-5xl mb-4"></i>
+      <p class="text-lg">No events recorded today</p>
+      <p class="text-sm mt-1">Start working and events will appear here</p>
+    </div>
+  } @else {
+    <p-timeline [value]="events()" styleClass="w-full">
+      <ng-template #content let-event>
+        <div class="mb-6 bg-zinc-900 border border-zinc-800 rounded-xl p-4 hover:border-zinc-700 transition-colors">
+          <div class="flex items-center justify-between mb-1">
+            <p-tag [value]="event.eventType" [severity]="severity(event.eventType)" />
+            <span class="text-zinc-500 text-xs">{{ event.ts | date:'HH:mm' }}</span>
+          </div>
+          @if (event.repo) {
+            <p class="text-zinc-300 text-sm mt-2">{{ event.repo }}</p>
+          }
+          @if (event.filePath) {
+            <p class="text-zinc-500 text-xs mt-1 font-mono">{{ event.filePath }}</p>
+          }
+        </div>
+      </ng-template>
+      <ng-template #opposite></ng-template>
+    </p-timeline>
+  }
+
+</div>
