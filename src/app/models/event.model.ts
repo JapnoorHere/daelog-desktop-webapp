@@ -8,6 +8,17 @@ export enum EventType {
   BROWSER_TAB = 'BROWSER_TAB',
 }
 
+export interface EventPayload {
+  message?: string;
+  hash?: string;
+  branch?: string;
+  command?: string;
+  url?: string;
+  title?: string;
+  app?: string;
+  filePath?: string;
+}
+
 export interface DaeEvent {
   id: string;
   sessionId: string;
@@ -23,5 +34,8 @@ export interface DaeEvent {
 export interface ApiResponse<T> {
   success: boolean;
   data: T;
-  error?: { code: string; message: string };
+  error?: { 
+    code: string; 
+    message: string 
+  };
 }

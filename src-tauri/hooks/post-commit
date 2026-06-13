@@ -1,0 +1,27 @@
+#!/bin/sh
+# fires after every git commit — sends event to daelog backend
+
+DAELOG_URL="${DAELOG_URL:-http://localhost:8080}"
+
+REPO=$(basename "$(git rev-parse --show-toplevel)")
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+MSG=$(git log -1 --pretty=%B | head -1)
+HASH=$(git rev-parse HEAD)
+TS=$(date +%s%3N 2>/dev/null || python3 -c "import time; print(int(time.time()*1000))")
+SESSION_ID="git-$(git rev-parse --show-toplevel | md5sum | cut -c1-8)"
+
+curl -s -X POST "$DAELOG_URL/api/v1/events" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"sessionId\": \"$SESSION_ID\",
+    \"eventType\": \"GIT_COMMIT\",
+    \"payload\": {
+      \"message\": \"$MSG\",
+      \"hash\": \"$HASH\",
+      \"branch\": \"$BRANCH\"
+    },
+    \"repo\": \"$REPO\",
+    \"ts\": $TS
+  }" > /dev/null 2>&1 &
+
+exit 0

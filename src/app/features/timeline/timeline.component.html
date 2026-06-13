@@ -1,43 +1,185 @@
-<div class="p-8 max-w-3xl">
+<div class="h-full flex flex-col">
 
-  <div class="flex items-center justify-between mb-8">
-    <div>
-      <h1 class="text-2xl font-semibold text-white">Today</h1>
-      <p class="text-zinc-400 text-sm mt-1">{{ today | date:'EEEE, MMMM d' }}</p>
-    </div>
-    <p-button label="Sync" icon="pi pi-sync" [outlined]="true" size="small" (onClick)="load()" />
-  </div>
+  <!-- Top bar -->
+  <div class="border-b border-zinc-800/60 px-8 py-5">
+    <div class="flex items-start justify-between gap-6">
 
-  @if (isLoading()) {
-    <div class="flex flex-col gap-4">
-      @for (i of [1,2,3]; track i) {
-        <p-skeleton height="80px" borderRadius="12px" />
-      }
-    </div>
-  } @else if (events().length === 0) {
-    <div class="flex flex-col items-center justify-center py-24 text-zinc-600">
-      <i class="pi pi-inbox text-5xl mb-4"></i>
-      <p class="text-lg">No events recorded today</p>
-      <p class="text-sm mt-1">Start working and events will appear here</p>
-    </div>
-  } @else {
-    <p-timeline [value]="events()" styleClass="w-full">
-      <ng-template #content let-event>
-        <div class="mb-6 bg-zinc-900 border border-zinc-800 rounded-xl p-4 hover:border-zinc-700 transition-colors">
-          <div class="flex items-center justify-between mb-1">
-            <p-tag [value]="event.eventType" [severity]="severity(event.eventType)" />
-            <span class="text-zinc-500 text-xs">{{ event.ts | date:'HH:mm' }}</span>
-          </div>
-          @if (event.repo) {
-            <p class="text-zinc-300 text-sm mt-2">{{ event.repo }}</p>
-          }
-          @if (event.filePath) {
-            <p class="text-zinc-500 text-xs mt-1 font-mono">{{ event.filePath }}</p>
+      <div class="flex-1 min-w-0">
+        <h1 class="text-2xl font-bold text-white tracking-tight">Today</h1>
+
+        <div class="flex items-center gap-2 mt-1.5 text-xs text-zinc-500 flex-wrap">
+          <span>{{ today | date:'EEEE, MMMM d, y' }}</span>
+          @if (!isLoading() && totalEvents() > 0) {
+            <span class="text-zinc-700">·</span>
+            <span>{{ totalEvents() }} events</span>
+            <span class="text-zinc-700">·</span>
+            <span>{{ filteredSessions().length }} {{ filteredSessions().length === 1 ? 'session' : 'sessions' }}</span>
+            @if (totalActiveTime() > 0) {
+              <span class="text-zinc-700">·</span>
+              <span class="text-emerald-600">{{ formatDuration(totalActiveTime()) }} active</span>
+            }
           }
         </div>
-      </ng-template>
-      <ng-template #opposite></ng-template>
-    </p-timeline>
+
+      </div>
+
+      <p-button label="Refresh" icon="pi pi-refresh" [outlined]="true" size="small" (onClick)="load()" />
+
+    </div>
+  </div>
+
+  <!-- Filter chips -->
+  @if (!isLoading() && sessions().length > 0) {
+    <div class="flex items-center gap-1.5 px-6 py-3 border-b border-zinc-800/50">
+      <span class="text-zinc-600 text-xs mr-1">Filter</span>
+      @for (chip of allFilterChips; track chip.label) {
+        <button
+          class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all duration-150 flex-shrink-0 cursor-pointer border"
+          [style.border-color]="isChipActive(chip.types) ? chip.color + '60' : '#27272a'"
+          [style.background-color]="isChipActive(chip.types) ? chip.color + '18' : 'transparent'"
+          [style.color]="isChipActive(chip.types) ? chip.color : '#71717a'"
+          (click)="toggleFilter(chip.types)"
+        >
+          <span class="w-1.5 h-1.5 rounded-full flex-shrink-0" [style.background-color]="chip.color"></span>
+          {{ chip.label }}
+        </button>
+      }
+    </div>
   }
 
+  <!-- Content -->
+  <div class="flex-1 overflow-y-auto px-6 py-5">
+
+    @if (isLoading()) {
+      <div class="flex flex-col gap-3">
+        @for (i of [1, 2]; track i) {
+          <div class="rounded-xl border border-zinc-800/60 overflow-hidden">
+            <div class="px-5 py-4 flex items-center justify-between border-b border-zinc-800/40 bg-zinc-900/50">
+              <p-skeleton width="160px" height="14px" styleClass="!bg-zinc-800" />
+              <p-skeleton width="48px" height="14px" styleClass="!bg-zinc-800" />
+            </div>
+            @for (j of [1, 2, 3]; track j) {
+              <div class="flex items-center gap-3 px-5 py-4 border-b border-zinc-800/30 last:border-b-0">
+                <p-skeleton width="32px" height="11px" styleClass="!bg-zinc-800/70" />
+                <p-skeleton width="8px" height="8px" borderRadius="50%" styleClass="!bg-zinc-800/70" />
+                <p-skeleton [width]="(j * 70 + 60) + 'px'" height="13px" styleClass="!bg-zinc-800/70" />
+                <p-skeleton [width]="(j * 40 + 80) + 'px'" height="13px" styleClass="!bg-zinc-800/40" />
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+
+    @else if (sessions().length === 0) {
+      <div class="flex flex-col items-center justify-center h-full min-h-64">
+        <i class="pi pi-inbox text-3xl text-zinc-700 mb-3"></i>
+        <p class="text-sm font-medium text-zinc-400">No events recorded today</p>
+        <p class="text-xs text-zinc-600 mt-1">Start working — events will appear here</p>
+      </div>
+    }
+
+    @else if (filteredSessions().length === 0) {
+      <div class="flex flex-col items-center justify-center h-full min-h-64">
+        <i class="pi pi-filter text-3xl text-zinc-700 mb-3"></i>
+        <p class="text-sm font-medium text-zinc-400">No events match filters</p>
+        <p class="text-xs text-zinc-600 mt-1">Enable more types above</p>
+      </div>
+    }
+
+    @else {
+      <div class="flex flex-col gap-3">
+        @for (session of filteredSessions(); track session.id) {
+          <div class="rounded-xl border border-zinc-800/70 overflow-hidden">
+
+            <!-- Session header -->
+            <button
+              class="w-full flex items-center justify-between px-5 py-4 bg-zinc-900/60 hover:bg-zinc-800/40 transition-colors text-left cursor-pointer"
+              (click)="toggleSession(session.id)"
+            >
+              <div class="flex items-center gap-4 flex-wrap">
+                <span class="text-zinc-200 text-sm font-mono font-medium">
+                  {{ session.startTs | date:'HH:mm' }}
+                  @if (session.duration > 0) {
+                    <span class="text-zinc-600"> — </span>{{ session.endTs | date:'HH:mm' }}
+                  }
+                </span>
+                @if (session.duration > 0) {
+                  <span class="text-emerald-500 text-xs font-medium">{{ formatDuration(session.duration) }}</span>
+                }
+                @for (repo of session.repos; track repo) {
+                  <span class="text-zinc-400 text-xs font-mono bg-zinc-800/60 px-2 py-0.5 rounded">{{ repo }}</span>
+                }
+              </div>
+              <div class="flex items-center gap-3 flex-shrink-0">
+                <span class="text-zinc-500 text-xs">{{ session.events.length }} events</span>
+                <i class="pi text-zinc-600 text-[10px]"
+                   [class.pi-chevron-up]="!isSessionCollapsed(session.id)"
+                   [class.pi-chevron-down]="isSessionCollapsed(session.id)">
+                </i>
+              </div>
+            </button>
+
+            <!-- Event rows -->
+            @if (!isSessionCollapsed(session.id)) {
+              <div class="border-t border-zinc-800/50 divide-y divide-zinc-800/40">
+                @for (event of session.events; track event.id) {
+                  <div class="flex items-start gap-3 px-5 py-3.5 hover:bg-zinc-800/20 transition-colors">
+
+                    <!-- Timestamp -->
+                    <span class="w-10 flex-shrink-0 text-zinc-500 text-xs font-mono pt-0.5 text-right">
+                      {{ event.ts | date:'HH:mm' }}
+                    </span>
+
+                    <!-- Dot -->
+                    <div class="w-2 h-2 rounded-full flex-shrink-0 mt-1.5" [style.background-color]="iconColor(event.eventType)"></div>
+
+                    <!-- Content -->
+                    <div class="flex-1 min-w-0">
+
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-xs font-semibold tracking-wide" [style.color]="iconColor(event.eventType)">
+                          {{ label(event.eventType) }}
+                        </span>
+                        @if (getPayload(event).branch) {
+                          <span class="text-zinc-400 text-xs font-mono">{{ getPayload(event).branch }}</span>
+                        }
+                        @if (event.repo) {
+                          <span class="text-zinc-500 text-xs font-mono bg-zinc-800/70 px-1.5 py-0.5 rounded">{{ event.repo }}</span>
+                        }
+                        @if (getPayload(event).hash) {
+                          <span class="text-zinc-600 text-xs font-mono ml-auto">{{ getPayload(event).hash | slice:0:7 }}</span>
+                        }
+                      </div>
+
+                      @if (getPayload(event).message) {
+                        <p class="text-zinc-100 text-sm mt-1 font-medium leading-snug">{{ getPayload(event).message }}</p>
+                      }
+                      @if (getPayload(event).command) {
+                        <p class="text-zinc-300 text-xs font-mono mt-1.5 bg-zinc-800/60 px-2.5 py-1.5 rounded-lg">
+                          <span class="text-zinc-600">$ </span>{{ getPayload(event).command }}
+                        </p>
+                      }
+                      @if (getPayload(event).url) {
+                        <p class="text-zinc-400 text-xs mt-1 truncate">{{ getPayload(event).url }}</p>
+                      }
+                      @if (event.filePath) {
+                        <p class="text-zinc-500 text-xs font-mono mt-1 truncate">{{ event.filePath }}</p>
+                      }
+                      @if (getPayload(event).app) {
+                        <p class="text-zinc-400 text-xs mt-1">{{ getPayload(event).app }}</p>
+                      }
+
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+
+          </div>
+        }
+      </div>
+    }
+
+  </div>
 </div>
